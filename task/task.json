@@ -1,0 +1,51 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+    "id": "a4b2c1d8-f6e5-4321-abcd-ef9876543210",
+    "name": "AICodeReview",
+    "friendlyName": "AI Code Review",
+    "description": "Reviews pull request diffs with OpenAI and posts inline comments as PR threads.",
+    "helpMarkDown": "Requires `Allow scripts to access the OAuth token` to be enabled in pipeline settings.",
+    "category": "Test",
+    "visibility": ["Build"],
+    "author": "hazardemircan",
+    "version": {
+        "Major": 0,
+        "Minor": 1,
+        "Patch": 0
+    },
+    "minimumAgentVersion": "2.206.1",
+    "instanceNameFormat": "AI Code Review",
+    "inputs": [
+        {
+            "name": "failOnSeverity",
+            "type": "pickList",
+            "label": "Fail pipeline on severity",
+            "defaultValue": "blocker",
+            "required": false,
+            "helpMarkDown": "Exit with code 1 if any finding at this severity or higher is found. Overrides the value in .codereview.yml.",
+            "options": {
+                "blocker": "blocker only",
+                "major": "major and above",
+                "minor": "minor and above",
+                "info": "all findings",
+                "none": "never fail (report only)"
+            }
+        },
+        {
+            "name": "configPath",
+            "type": "string",
+            "label": "Config file path",
+            "defaultValue": ".codereview.yml",
+            "required": false,
+            "helpMarkDown": "Path to the rules config file, relative to the repository root."
+        }
+    ],
+    "execution": {
+        "Bash": {
+            "target": "task.sh"
+        },
+        "PowerShell3": {
+            "target": "task.ps1"
+        }
+    }
+}

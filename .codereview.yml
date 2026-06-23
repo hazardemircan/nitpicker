@@ -1,0 +1,33 @@
+version: 1
+
+# Exit the pipeline with code 1 if any finding at this severity or higher is found.
+# Severity order: blocker > major > minor > info
+failOn: blocker
+
+openAIModel: gpt-4o
+maxFilesPerReview: 20
+
+# Lines of unchanged context kept around each change in the diff sent to the
+# model (git --unified). More context can improve reviews but uses more tokens.
+diffContext: 3
+
+excludePatterns:
+  - "**/*_test.go"
+  - "**/vendor/**"
+  - "**/*.generated.go"
+  - "**/*.pb.go"
+  - "**/testdata/**"
+  - "**/mock_*.go"
+
+rules:
+  - "No raw SQL string concatenation; always use parameterized queries or a query builder"
+  - "All exported functions and types must have a documentation comment"
+  - "Avoid panic() outside of main() and init(); use error returns instead"
+  - "Check all error return values; do not discard errors with _"
+  - "HTTP handlers must never expose internal error details or stack traces to clients"
+  - "Sensitive data (passwords, tokens, API keys) must never be logged or serialized to JSON"
+  - "Context should be the first parameter of functions that perform I/O"
+  # Semantic consistency checks
+  - "Detect logic errors where a boolean expression contradicts the semantic intent of its variable name or surrounding context (e.g. a variable named 'isX' assigned with != instead of ==)"
+  - "Flag any condition or assignment where the operator, value, or expression appears to be the inverse of what the code's naming or comments suggest was intended"
+  - "Review boolean variable names against their assigned expressions to verify semantic consistency"

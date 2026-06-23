@@ -1,0 +1,31 @@
+{
+    "manifestVersion": 1,
+    "id": "ai-code-review",
+    "name": "AI Code Review",
+    "version": "0.1.0",
+    "publisher": "hazardemircan",
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services"
+        }
+    ],
+    "description": "Automated AI-powered code review using OpenAI. Posts inline findings as pull request comment threads.",
+    "categories": ["Azure Pipelines"],
+    "tags": ["code-review", "ai", "gpt", "pull-request"],
+    "files": [
+        {
+            "path": "../task",
+            "packagePath": "task"
+        }
+    ],
+    "contributions": [
+        {
+            "id": "ai-code-review-task",
+            "type": "ms.vss-distributed-task.task",
+            "targets": ["ms.vss-distributed-task.tasks"],
+            "properties": {
+                "name": "task"
+            }
+        }
+    ]
+}

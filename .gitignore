@@ -1,0 +1,25 @@
+# Built binaries (populated by `make build`)
+task/bin/
+ai-code-review
+ai-code-review.exe
+
+# Go test artifacts
+*.test
+*.out
+
+# Secrets and local env
+.env
+.env.local
+.env.*.local
+
+# Packaged extension
+*.vsix
+
+# Editor / tooling
+.idea/
+.vscode/
+.claude/
+
+# OS cruft
+.DS_Store
+Thumbs.db

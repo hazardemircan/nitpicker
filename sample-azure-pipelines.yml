@@ -1,0 +1,48 @@
+# Example pipeline using the packaged AICodeReview task (Option B in the README).
+# Set OPENAI_API_KEY as a secret pipeline variable before running.
+
+trigger:
+  - main
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Review
+    displayName: AI Code Review
+    condition: eq(variables['Build.Reason'], 'PullRequest')
+    jobs:
+      - job: AIReview
+        displayName: Review PR diff
+        steps:
+          - checkout: self
+            # Lets the task call the Azure DevOps API with the OAuth token.
+            persistCredentials: true
+
+          - task: AICodeReview@0
+            displayName: AI Code Review
+            inputs:
+              failOnSeverity: blocker
+              configPath: .codereview.yml
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              OPENAI_API_KEY: $(OPENAI_API_KEY)
+
+  - stage: Build
+    displayName: Build & Test
+    dependsOn: Review
+    condition: succeeded('Review')
+    jobs:
+      - job: BuildAndTest
+        steps:
+          - checkout: self
+          - script: go build ./...
+            displayName: Build
+          - script: go test ./...
+            displayName: Test
