@@ -129,6 +129,8 @@ func run() error {
 			body := fmt.Sprintf("%s **[%s]** %s", severityEmoji(f.Severity), strings.ToUpper(f.Severity), f.Message)
 			if err := adoClient.PostComment(prID, fd.Path, f.Line, body); err != nil {
 				log.Printf("  could not post comment on %s:%d: %v", fd.Path, f.Line, err)
+			} else {
+				log.Printf("  posted %s finding on %s:%d", f.Severity, fd.Path, f.Line)
 			}
 		}
 	}
