@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -74,9 +75,18 @@ func run() error {
 
 	configPath := envOr("CONFIG_PATH", ".codereview.yml")
 	cfg, err := config.Load(filepath.Join(repoPath, configPath))
-	if err != nil {
-		log.Printf("could not load %s (%v), using defaults", configPath, err)
+	switch {
+	case err == nil:
+		// loaded successfully
+	case errors.Is(err, os.ErrNotExist):
+		// No config file is a supported, zero-config mode: fall back to defaults.
+		log.Printf("no %s found, using defaults", configPath)
 		cfg = config.Default()
+	default:
+		// The file exists but could not be parsed. Failing hard here is
+		// deliberate: silently using defaults can drop the user's failOn
+		// setting and let a broken gate report success.
+		return fmt.Errorf("invalid %s: %w", configPath, err)
 	}
 
 	// FAIL_ON overrides the config value (set from the task's failOnSeverity input).

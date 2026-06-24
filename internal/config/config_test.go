@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"testing"
 )
@@ -77,13 +78,23 @@ func TestLoad_FileNotFound(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for missing file, got nil")
 	}
+	// A missing file must be distinguishable from a malformed one so callers
+	// can fall back to defaults only when the file is genuinely absent.
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("missing file error should wrap os.ErrNotExist, got %v", err)
+	}
 }
 
 func TestLoad_InvalidYAML(t *testing.T) {
 	f := writeTempFile(t, "failOn: [not a string\n")
 	_, err := Load(f)
 	if err == nil {
-		t.Error("expected error for invalid YAML, got nil")
+		t.Fatal("expected error for invalid YAML, got nil")
+	}
+	// A malformed config must NOT look like a missing file, otherwise the
+	// caller would silently degrade to defaults and drop the user's settings.
+	if errors.Is(err, os.ErrNotExist) {
+		t.Errorf("malformed config should not report as missing, got %v", err)
 	}
 }
 

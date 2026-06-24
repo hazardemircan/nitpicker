@@ -24,7 +24,12 @@ Findings have one of four severities: `blocker`, `major`, `minor`, `info`.
 
 Review behavior is controlled by a `.codereview.yml` file at the root of the
 repository being reviewed. All fields are optional; sensible defaults are used
-when the file is absent.
+when the file is absent — the tool works with zero configuration.
+
+If the file is **present but malformed** (e.g. a YAML indentation error), the
+step fails fast with a non-zero exit instead of silently falling back to
+defaults. This is deliberate: degrading to defaults could quietly drop your
+`failOn` setting and let a broken gate report success.
 
 ```yaml
 version: 1
