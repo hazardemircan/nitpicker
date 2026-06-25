@@ -217,7 +217,7 @@ func fakeFinding(fd ado.FileDiff) []ai.Finding {
 				return []ai.Finding{{
 					Line:     l.LineNo,
 					Severity: "info",
-					Message:  "Mock finding (MOCK_AI=1) — no real review was performed.",
+					Message:  "Mock finding (MOCK_AI=1): no real review was performed.",
 				}}
 			}
 		}

@@ -51,11 +51,11 @@ func GetDiff(repoPath, targetBranch string, contextLines int) ([]FileDiff, error
 }
 
 func mergeBase(repoPath, targetBranch string) (string, error) {
-	// Best-effort fetch; ignore errors (branch may already be present).
-	//Önce bir fetch yapıyoruz ki merge-base doğru çalışsın. Eğer fetch başarısız olursa, zaten localde varsa merge-base yine çalışır.
+	// Best-effort fetch so the target branch is present; ignore errors since the
+	// branch may already be in the local checkout.
 	git(repoPath, "fetch", "--depth=50", "origin", targetBranch) //nolint:errcheck
 
-	//targetBranch ile şuan bulunduğumuz branch(HEAD) arasındaki en son ortak commiti(merge-base) buluyoruz. sha bu en son ortak commitin hash'idir.
+	// Find the most recent common ancestor of HEAD and the target branch.
 	sha, err := git(repoPath, "merge-base", "HEAD", "origin/"+targetBranch)
 	if err != nil {
 		// Shallow clone or no remote? Fall back to the local branch name.

@@ -1,0 +1,32 @@
+# Keep the build context small and free of artifacts/secrets.
+.git
+.github
+.vscode
+.idea
+.claude
+
+# Built binaries (rebuilt inside the image)
+task/bin/
+ai-code-review
+ai-code-review.exe
+
+# Go test artifacts
+*.test
+*.out
+
+# Secrets and local env
+.env
+.env.local
+.env.*.local
+
+# Packaged extension
+*.vsix
+
+# Docs and samples not needed at build time
+README.md
+LICENSE
+*.md
+
+# OS cruft
+.DS_Store
+Thumbs.db

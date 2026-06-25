@@ -24,7 +24,7 @@ Findings have one of four severities: `blocker`, `major`, `minor`, `info`.
 
 Review behavior is controlled by a `.codereview.yml` file at the root of the
 repository being reviewed. All fields are optional; sensible defaults are used
-when the file is absent — the tool works with zero configuration.
+when the file is absent, so the tool works with zero configuration.
 
 If the file is **present but malformed** (e.g. a YAML indentation error), the
 step fails fast with a non-zero exit instead of silently falling back to
@@ -131,6 +131,67 @@ Upload the resulting `.vsix` to the Visual Studio Marketplace and install it to
 your organization. The task binaries are bundled into the `.vsix`, so always run
 `make build` before packaging (`task/bin/` is gitignored).
 
+### Option C — prebuilt Docker image (no clone, no compile)
+
+A container image is published to the GitHub Container Registry, so a pipeline
+can pull and run it directly instead of cloning the source and compiling Go on
+every PR. This removes the Go toolchain install + `git clone` + `go build`
+overhead from each run.
+
+```
+ghcr.io/hazardemircan/nitpicker:latest
+```
+
+Run it against a checked-out repository by mounting the checkout at `/repo`:
+
+```yaml
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    persistCredentials: true   # lets nitpicker call the Azure DevOps REST API
+    fetchDepth: 0              # full history so the diff merge-base resolves
+
+  - script: |
+      docker run --rm \
+        -e SYSTEM_ACCESSTOKEN \
+        -e OPENAI_API_KEY \
+        -e SYSTEM_TEAMFOUNDATIONCOLLECTIONURI \
+        -e SYSTEM_TEAMPROJECT \
+        -e BUILD_REPOSITORY_ID \
+        -e SYSTEM_PULLREQUEST_PULLREQUESTID \
+        -e SYSTEM_PULLREQUEST_TARGETBRANCHNAME \
+        -e BUILD_REPOSITORY_LOCALPATH=/repo \
+        -v "$(Build.Repository.LocalPath):/repo" \
+        ghcr.io/hazardemircan/nitpicker:latest
+    displayName: AI Code Review
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      OPENAI_API_KEY: $(OPENAI_API_KEY)
+```
+
+Notes:
+
+- `checkout` still runs on the host agent; only nitpicker runs in the container.
+  The host checkout is mounted read/write at `/repo` and
+  `BUILD_REPOSITORY_LOCALPATH=/repo` points the tool at it (the host path the
+  pipeline sets by default does not exist inside the container).
+- The image bundles `git`, so the diff is computed inside the container.
+- The image is rebuilt and published automatically by
+  [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)
+  on every push to `main` and on `v*` tags.
+
+Other CI systems (GitHub Actions, GitLab CI, plain `docker run` locally) work
+the same way: provide the environment variables and mount the checkout at
+`/repo`. To pin a version, replace `:latest` with a tag such as `:v1.0.0` or a
+`:sha-<short-sha>` tag.
+
+The image is based on Alpine and contains only `git`, `ca-certificates`, and the
+static `nitpicker` binary. Any remaining scanner findings are in the upstream
+`git`/`curl` Alpine packages with no fix released yet; a rebuild picks up fixes
+as Alpine ships them.
+
 ## Environment variables
 
 | Variable | Required | Description |
@@ -157,6 +218,22 @@ make build-windows
 make build-darwin
 go test ./...
 ```
+
+### Docker image
+
+```bash
+make docker-build                                   # build ghcr.io/hazardemircan/nitpicker:latest
+make docker-push IMAGE=ghcr.io/youruser/nitpicker TAG=v1.0.0   # build + push your own
+
+# or plain docker, mounting a checkout to review it locally:
+docker build -t nitpicker .
+docker run --rm -e OPENAI_API_KEY -e MOCK_AI=1 -e DRY_RUN=1 \
+  -e BUILD_REPOSITORY_LOCALPATH=/repo -v "$PWD:/repo" nitpicker
+```
+
+In CI the image is built and pushed to GHCR automatically. See
+[Option C](#option-c--prebuilt-docker-image-no-clone-no-compile) and
+[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml).
 
 ## License
 

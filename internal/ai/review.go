@@ -113,16 +113,16 @@ func (r *Reviewer) systemPrompt() string {
 
 Analyze the provided file diff and return a JSON object with a "findings" array.
 Each finding must have exactly these fields:
-  "line"     – integer, the new-file line number where the issue appears
-               (must correspond to a line prefixed with "+" in the diff)
-  "severity" – one of: "blocker", "major", "minor", "info"
-  "message"  – a concise, actionable description of the issue
+  "line":     integer, the new-file line number where the issue appears
+              (must correspond to a line prefixed with "+" in the diff)
+  "severity": one of: "blocker", "major", "minor", "info"
+  "message":  a concise, actionable description of the issue
 
 Severity definitions:
-  blocker – security vulnerabilities, data loss, crashes, incorrect critical logic
-  major   – significant bugs, missing error handling, serious performance problems
-  minor   – code style, naming conventions, small inefficiencies
-  info    – suggestions, documentation, best practices
+  blocker: security vulnerabilities, data loss, crashes, incorrect critical logic
+  major:   significant bugs, missing error handling, serious performance problems
+  minor:   code style, naming conventions, small inefficiencies
+  info:    suggestions, documentation, best practices
 
 Rules:
 - Only report findings on ADDED lines (lines prefixed with "+" in the diff).
