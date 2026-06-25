@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build stage ----
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 
 WORKDIR /src
 
@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/nitpick
 
 # ---- Runtime stage ----
 # git is required to compute the diff; ca-certificates for HTTPS to OpenAI/ADO.
-FROM alpine:3.22
+FROM alpine:3.24
 
 RUN apk add --no-cache git ca-certificates
 
