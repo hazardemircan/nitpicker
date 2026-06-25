@@ -3,6 +3,6 @@ module nitpicker
 go 1.22
 
 require (
-	github.com/bmatcuk/doublestar/v4 v4.6.1
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	gopkg.in/yaml.v3 v3.0.1
 )
