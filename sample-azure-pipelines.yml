@@ -1,48 +1,42 @@
-# Example pipeline using the packaged AICodeReview task (Option B in the README).
-# Set OPENAI_API_KEY as a secret pipeline variable before running.
+# IMPORTANT: The repo lives in Azure Repos, where pull-request triggers are NOT
+# driven by the `pr:` block below. Instead you must add a Build Validation branch
+# policy on your default branch for example `main` that runs this pipeline (see setup notes at the bottom).
+#
+# Required pipeline variables (Pipeline > Edit > Variables):
+#   OPENAI_API_KEY  (secret)  - your OpenAI API key
+#
+# This pipeline pulls the prebuilt nitpicker container image instead of cloning
+# and compiling it on every run, which removes the Go install + clone + build
+# overhead. Override NITPICKER_IMAGE to pin a version or use your own registry.
 
-trigger:
-  - main
-
-pr:
-  branches:
-    include:
-      - main
-      - develop
+trigger: none      # build on PR validation only, not on pushes
+pr: none           # ignored by Azure Repos; PR builds come from the branch policy
 
 pool:
   vmImage: ubuntu-latest
 
-stages:
-  - stage: Review
+variables:
+  NITPICKER_IMAGE: ghcr.io/hazardemircan/nitpicker:latest
+
+steps:
+  - checkout: self
+    persistCredentials: true   # lets nitpicker call the Azure DevOps REST API
+    fetchDepth: 0              # full history so the diff merge-base resolves
+
+  - script: |
+      set -e
+      docker run --rm \
+        -e SYSTEM_ACCESSTOKEN \
+        -e OPENAI_API_KEY \
+        -e SYSTEM_TEAMFOUNDATIONCOLLECTIONURI \
+        -e SYSTEM_TEAMPROJECT \
+        -e BUILD_REPOSITORY_ID \
+        -e SYSTEM_PULLREQUEST_PULLREQUESTID \
+        -e SYSTEM_PULLREQUEST_TARGETBRANCHNAME \
+        -e BUILD_REPOSITORY_LOCALPATH=/repo \
+        -v "$(Build.Repository.LocalPath):/repo" \
+        "$(NITPICKER_IMAGE)"
     displayName: AI Code Review
-    condition: eq(variables['Build.Reason'], 'PullRequest')
-    jobs:
-      - job: AIReview
-        displayName: Review PR diff
-        steps:
-          - checkout: self
-            # Lets the task call the Azure DevOps API with the OAuth token.
-            persistCredentials: true
-
-          - task: AICodeReview@0
-            displayName: AI Code Review
-            inputs:
-              failOnSeverity: blocker
-              configPath: .codereview.yml
-            env:
-              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-              OPENAI_API_KEY: $(OPENAI_API_KEY)
-
-  - stage: Build
-    displayName: Build & Test
-    dependsOn: Review
-    condition: succeeded('Review')
-    jobs:
-      - job: BuildAndTest
-        steps:
-          - checkout: self
-          - script: go build ./...
-            displayName: Build
-          - script: go test ./...
-            displayName: Test
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      OPENAI_API_KEY: $(OPENAI_API_KEY)

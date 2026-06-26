@@ -1,22 +1,25 @@
 # Builds the nitpicker container image and publishes it to the GitHub Container
-# Registry (GHCR) so other developers can pull a prebuilt image instead of
-# cloning and compiling. Images land at:
+# Registry (GHCR). Publishing is release-driven: an image is built only when a
+# version tag (v*) is pushed, so merges to main do not create extra packages.
 #
 #   ghcr.io/<owner>/nitpicker
 #
-# Tags produced:
-#   - latest            (on the default branch)
-#   - <branch>          (on branch pushes)
-#   - <semver>, <major.minor>, <major>  (on v* git tags, e.g. v1.2.3)
-#   - sha-<short-sha>   (always)
+# Tags produced per release (e.g. v1.2.3):
+#   - 1.2.3, 1.2, 1   (semver)
+#   - latest          (newest non-prerelease release)
+#   - sha-<short-sha> (traceability)
 name: Publish Docker image
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
   # Lets you publish on demand from the Actions tab.
   workflow_dispatch:
+
+# Avoid overlapping publishes for the same ref.
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
@@ -48,9 +51,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # latest=auto (the default) tags :latest on non-prerelease releases.
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}

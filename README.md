@@ -178,9 +178,10 @@ Notes:
   `BUILD_REPOSITORY_LOCALPATH=/repo` points the tool at it (the host path the
   pipeline sets by default does not exist inside the container).
 - The image bundles `git`, so the diff is computed inside the container.
-- The image is rebuilt and published automatically by
+- Images are published by
   [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)
-  on every push to `main` and on `v*` tags.
+  when a version tag (`v*`) is pushed. `:latest` always points at the newest
+  release; merges to `main` do not publish a new image.
 
 Other CI systems (GitHub Actions, GitLab CI, plain `docker run` locally) work
 the same way: provide the environment variables and mount the checkout at
