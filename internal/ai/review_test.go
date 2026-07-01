@@ -2,6 +2,7 @@ package ai
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -88,7 +89,46 @@ func TestReviewFile_APIError(t *testing.T) {
 	reviewer := NewReviewer("bad-key", "gpt-4o", nil)
 	_, err := reviewer.ReviewFile("foo.go", "+[1] code")
 	if err == nil {
-		t.Error("expected error for 401 response, got nil")
+		t.Fatal("expected error for 401 response, got nil")
+	}
+	// The caller relies on the typed error to tell an un-reviewed file apart
+	// from a clean review, and on Permanent() to stop early on unrecoverable errors.
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *APIError, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode != http.StatusUnauthorized {
+		t.Errorf("StatusCode = %d, want %d", apiErr.StatusCode, http.StatusUnauthorized)
+	}
+	if !apiErr.Permanent() {
+		t.Error("401 should be treated as a permanent (non-recoverable) error")
+	}
+}
+
+func TestAPIError_Permanent(t *testing.T) {
+	cases := []struct {
+		name          string
+		code          int
+		body          string
+		wantPermanent bool
+		wantCode      string
+	}{
+		{"quota exhausted", http.StatusTooManyRequests, `{"error":{"code":"insufficient_quota"}}`, true, "insufficient_quota"},
+		{"transient rate limit", http.StatusTooManyRequests, `{"error":{"code":"rate_limit_exceeded"}}`, false, "rate_limit_exceeded"},
+		{"unauthorized", http.StatusUnauthorized, `bad key`, true, ""},
+		{"forbidden", http.StatusForbidden, `no access`, true, ""},
+		{"server error", http.StatusInternalServerError, `oops`, false, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newAPIError(tc.code, []byte(tc.body))
+			if e.Code != tc.wantCode {
+				t.Errorf("Code = %q, want %q", e.Code, tc.wantCode)
+			}
+			if got := e.Permanent(); got != tc.wantPermanent {
+				t.Errorf("Permanent() = %v, want %v", got, tc.wantPermanent)
+			}
+		})
 	}
 }
 
