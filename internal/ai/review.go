@@ -22,6 +22,48 @@ type reviewResponse struct {
 	Findings []Finding `json:"findings"`
 }
 
+// APIError is returned when the OpenAI API responds with a non-200 status. It
+// lets callers distinguish a review that could not be performed (quota, auth,
+// transport failures) from a review that completed and found nothing.
+type APIError struct {
+	StatusCode int
+	Code       string // OpenAI error code (e.g. "insufficient_quota"), if present
+	Body       string // raw response body, retained for logging
+}
+
+// newAPIError builds an APIError, extracting the OpenAI error code from the
+// response envelope when the body is the standard {"error":{...}} shape.
+func newAPIError(statusCode int, body []byte) *APIError {
+	e := &APIError{StatusCode: statusCode, Body: string(body)}
+	var env struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(body, &env) == nil {
+		e.Code = env.Error.Code
+	}
+	return e
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("OpenAI %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
+}
+
+// Permanent reports whether retrying is pointless because the error will recur
+// for every subsequent request. Exhausted quota and authentication failures are
+// permanent; a plain 429 rate limit is transient and so is not.
+func (e *APIError) Permanent() bool {
+	switch e.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return true
+	case http.StatusTooManyRequests:
+		return e.Code == "insufficient_quota"
+	default:
+		return false
+	}
+}
+
 // Reviewer calls the OpenAI chat completions API to review code diffs.
 type Reviewer struct {
 	apiKey  string
@@ -83,7 +125,7 @@ func (r *Reviewer) ReviewFile(filePath, diff string) ([]Finding, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenAI %d: %s", resp.StatusCode, body)
+		return nil, newAPIError(resp.StatusCode, body)
 	}
 
 	var apiResp struct {

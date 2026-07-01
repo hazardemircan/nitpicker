@@ -113,6 +113,7 @@ func run() error {
 	reviewer := ai.NewReviewer(openAIKey, cfg.OpenAIModel, cfg.Rules)
 
 	failCount := 0
+	reviewErrors := 0
 	for _, fd := range diffs {
 		diffText := renderDiff(fd)
 		if strings.TrimSpace(diffText) == "" {
@@ -126,7 +127,16 @@ func run() error {
 		} else {
 			findings, err = reviewer.ReviewFile(fd.Path, diffText)
 			if err != nil {
+				reviewErrors++
 				log.Printf("  review failed for %s: %v", fd.Path, err)
+
+				// Permanent API errors (exhausted quota, bad key) will hit every
+				// remaining file too, so stop instead of hammering the API.
+				var apiErr *ai.APIError
+				if errors.As(err, &apiErr) && apiErr.Permanent() {
+					log.Printf("  aborting review: OpenAI API error is not recoverable")
+					break
+				}
 				continue
 			}
 		}
@@ -142,6 +152,17 @@ func run() error {
 			} else {
 				log.Printf("  posted %s finding on %s:%d", f.Severity, fd.Path, f.Line)
 			}
+		}
+	}
+
+	// A review that could not run is not a clean review. Fail loudly rather than
+	// letting an un-reviewed PR report success (e.g. when the OpenAI quota is
+	// exhausted). Set FAIL_ON_REVIEW_ERROR=0 to downgrade this to a warning.
+	if reviewErrors > 0 {
+		if os.Getenv("FAIL_ON_REVIEW_ERROR") == "0" {
+			log.Printf("WARNING: %d file(s) could not be reviewed; results are incomplete", reviewErrors)
+		} else {
+			return fmt.Errorf("review incomplete: %d file(s) could not be reviewed (see errors above)", reviewErrors)
 		}
 	}
 

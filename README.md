@@ -14,6 +14,11 @@ DevOps pipeline and can optionally fail the build when a serious issue is found.
 
 Findings have one of four severities: `blocker`, `major`, `minor`, `info`.
 
+If a file cannot be reviewed at all — for example the OpenAI quota is exhausted
+(HTTP 429 `insufficient_quota`) or the API key is invalid — the step **fails
+loudly** rather than reporting a clean review. An un-reviewed PR is never treated
+as a passing one. Set `FAIL_ON_REVIEW_ERROR=0` to downgrade this to a warning.
+
 ## Requirements
 
 - Go 1.22+ (to build)
@@ -202,6 +207,7 @@ as Alpine ships them.
 | `MOCK_AI` | no | `1` returns a fake finding instead of calling OpenAI |
 | `DRY_RUN` | no | `1` prints comments instead of posting them |
 | `FAIL_ON` | no | Override `failOn` from config (`blocker`/`major`/`minor`/`info`/`none`) |
+| `FAIL_ON_REVIEW_ERROR` | no | `0` downgrades an incomplete review (API/quota errors) to a warning instead of failing the step. Defaults to failing. |
 | `CONFIG_PATH` | no | Path to the config file (default `.codereview.yml`) |
 
 For local runs, copy [.env.example](.env.example) to `.env`; the local-test
